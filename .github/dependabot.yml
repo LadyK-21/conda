@@ -1,0 +1,8 @@
+Name: Dependabot version updates
+
+version: 2
+updates:
+  - package-ecosystem: "conda"
+    directory: "LadyK-21/conda"
+    schedule:
+      interval: "daily"
