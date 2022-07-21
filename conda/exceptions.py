@@ -229,7 +229,7 @@ class CommandNotFoundError(CondaError):
             'clean',
             'config',
             'create',
-            'help',
+            '--help',  # https://github.com/conda/conda/issues/11585
             'info',
             'install',
             'list',
@@ -1024,6 +1024,13 @@ class EnvironmentFileExtensionNotValid(CondaEnvException):
         msg = "'{}' file extension must be one of '.txt', '.yaml' or '.yml'".format(filename)
         self.filename = filename
         super(EnvironmentFileExtensionNotValid, self).__init__(msg, *args, **kwargs)
+
+
+class EnvironmentFileEmpty(CondaEnvException):
+    def __init__(self, filename, *args, **kwargs):
+        self.filename = filename
+        msg = f"'{filename}' is empty"
+        super().__init__(msg, *args, **kwargs)
 
 
 class EnvironmentFileNotDownloaded(CondaError):

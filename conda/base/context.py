@@ -14,6 +14,7 @@ import sys
 import struct
 from contextlib import contextmanager
 from datetime import datetime
+import warnings
 
 from .constants import (
     APP_NAME,
@@ -36,6 +37,7 @@ from .constants import (
     ExperimentalSolverChoice,
     UpdateModifier,
     CONDA_LOGS_DIR,
+    PREFIX_NAME_DISALLOWED_CHARS,
 )
 from .. import __version__ as CONDA_VERSION
 from .._vendor.appdirs import user_data_dir
@@ -314,6 +316,7 @@ class Context(Configuration):
     ignore_pinned = ParameterLoader(PrimitiveParameter(False))
     report_errors = ParameterLoader(PrimitiveParameter(None, element_type=(bool, NoneType)))
     shortcuts = ParameterLoader(PrimitiveParameter(True))
+    number_channel_notices = ParameterLoader(PrimitiveParameter(5, element_type=int))
     _verbosity = ParameterLoader(
         PrimitiveParameter(0, element_type=int), aliases=('verbose', 'verbosity'))
 
@@ -1009,6 +1012,7 @@ class Context(Configuration):
                 "verbosity",
                 "unsatisfiable_hints",
                 "unsatisfiable_hints_check_depth",
+                "number_channel_notices",
             ),
             "CLI-only": (
                 "deps_modifier",
@@ -1567,6 +1571,13 @@ class Context(Configuration):
                 dependencies and specified constraints.
                 """
             ),
+            number_channel_notices=dals(
+                """
+                Sets the number of channel notices to be displayed when running commands
+                the "install", "create", "update", "env create", and "env update" . Defaults
+                to 5. In order to completely suppress channel notices, set this to 0.
+                """
+            ),
         )
 
 
@@ -1721,6 +1732,34 @@ def locate_prefix_by_name(name, envs_dirs=None):
     raise EnvironmentNameNotFound(name)
 
 
+def validate_prefix_name(prefix_name: str, ctx: Context, allow_base=True) -> str:
+    """Run various validations to make sure prefix_name is valid"""
+    from ..exceptions import CondaValueError
+
+    if PREFIX_NAME_DISALLOWED_CHARS.intersection(prefix_name):
+        raise CondaValueError(
+            dals(
+                f"""
+                Invalid environment name: {prefix_name!r}
+                Characters not allowed: {PREFIX_NAME_DISALLOWED_CHARS}
+                """
+            )
+        )
+
+    if prefix_name in (ROOT_ENV_NAME, "root"):
+        if allow_base:
+            return ctx.root_prefix
+        else:
+            raise CondaValueError("Use of 'base' as environment name is not allowed here.")
+
+    else:
+        from ..exceptions import EnvironmentNameNotFound
+        try:
+            return locate_prefix_by_name(prefix_name)
+        except EnvironmentNameNotFound:
+            return join(_first_writable_envs_dir(), prefix_name)
+
+
 def determine_target_prefix(ctx, args=None):
     """Get the prefix to operate in.  The prefix may not yet exist.
 
@@ -1755,20 +1794,7 @@ def determine_target_prefix(ctx, args=None):
     elif prefix_path is not None:
         return expand(prefix_path)
     else:
-        disallowed_chars = ('/', ' ', ':', '#')
-        if any(_ in prefix_name for _ in disallowed_chars):
-            from ..exceptions import CondaValueError
-            builder = ["Invalid environment name: '" + prefix_name + "'"]
-            builder.append("  Characters not allowed: {}".format(disallowed_chars))
-            raise CondaValueError("\n".join(builder))
-        if prefix_name in (ROOT_ENV_NAME, 'root'):
-            return ctx.root_prefix
-        else:
-            from ..exceptions import EnvironmentNameNotFound
-            try:
-                return locate_prefix_by_name(prefix_name)
-            except EnvironmentNameNotFound:
-                return join(_first_writable_envs_dir(), prefix_name)
+        return validate_prefix_name(prefix_name, ctx=ctx)
 
 
 def _first_writable_envs_dir():
@@ -1802,6 +1828,11 @@ def _first_writable_envs_dir():
 
 # backward compatibility for conda-build
 def get_prefix(ctx, args, search=True):  # pragma: no cover
+    warnings.warn(
+        "`conda.base.context.get_prefix` is pending deprecation and will be removed in a future "
+        "release. Please use `conda.base.context.determine_target_prefix` instead.",
+        PendingDeprecationWarning,
+    )
     return determine_target_prefix(ctx or context, args)
 
 

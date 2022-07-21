@@ -156,8 +156,19 @@ CONDA_TEMP_EXTENSIONS = (CONDA_TEMP_EXTENSION, ".trash")
 CONDA_LOGS_DIR = ".logs"
 
 UNKNOWN_CHANNEL = "<unknown>"
-REPODATA_FN = 'repodata.json'
+REPODATA_FN = "repodata.json"
 
+#: Default name of the notices file on the server we look for
+NOTICES_FN = "notices.json"
+
+#: Name of cache file where read notice IDs are stored
+NOTICES_CACHE_FN = "notices.cache"
+
+#: Determines the subdir for notices cache
+NOTICES_CACHE_SUBDIR = "notices"
+
+DRY_RUN_PREFIX = "Dry run action:"
+PREFIX_NAME_DISALLOWED_CHARS = {"/", " ", ":", "#"}
 
 # TODO: Determine whether conda.base is the right place for this data; it
 # should be a constant, but another module may be more appropriate.
@@ -267,7 +278,14 @@ class ChannelPriorityMeta(EnumMeta):
             return super(ChannelPriorityMeta, cls).__call__(value, *args, **kwargs)
 
 
-class ChannelPriority(six_with_metaclass(ChannelPriorityMeta, Enum)):
+class ValueEnum(Enum):
+    """Subclass of enum that returns the value of the enum as its str representation"""
+
+    def __str__(self):
+        return f"{self.value}"
+
+
+class ChannelPriority(six_with_metaclass(ChannelPriorityMeta, ValueEnum)):
     __name__ = "ChannelPriority"
 
     STRICT = 'strict'
@@ -275,26 +293,23 @@ class ChannelPriority(six_with_metaclass(ChannelPriorityMeta, Enum)):
     FLEXIBLE = 'flexible'
     DISABLED = 'disabled'
 
-    def __str__(self):
-        return self.value
 
-
-class SatSolverChoice(Enum):
+class SatSolverChoice(ValueEnum):
     PYCOSAT = 'pycosat'
     PYCRYPTOSAT = 'pycryptosat'
     PYSAT = 'pysat'
 
-    def __str__(self):
-        return self.value
 
-
-class ExperimentalSolverChoice(Enum):
+class ExperimentalSolverChoice(ValueEnum):
     CLASSIC = 'classic'
     LIBMAMBA = 'libmamba'
     LIBMAMBA_DRAFT = 'libmamba-draft'
 
-    def __str__(self):
-        return self.value
+
+class NoticeLevel(ValueEnum):
+    CRITICAL = "critical"
+    WARNING = "warning"
+    INFO = "info"
 
 
 # Magic files for permissions determination
